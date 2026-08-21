@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Omniscripta — Ateliê Narrativo & Motor Editorial</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Cinzel:wght@600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,600;1,300&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,400&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="wrapper journal-container">
+  <header class="journal-header">
+    <div class="header-top">
+      <div class="brand-area">
+        <div class="brand-badge-line">
+          <span class="logo-tag">OMNISCRIPTA &bull; ATELIÊ EDITORIAL & MOTOR NARRATIVO</span>
+          <button class="theme-toggle-btn" onclick="toggleAppTheme()" id="theme-toggle-btn" title="Alternar tema">
+            <span class="theme-icon">🌙</span> <span class="theme-label">Dark Academia</span>
+          </button>
+        </div>
+        <div class="project-selector-wrap">
+          <select id="project-select" class="project-dropdown" onchange="switchProject(this.value)"></select>
+          <button class="btn btn-primary" onclick="openNewProjectModal()">+ Nova Obra</button>
+          <button class="btn btn-secondary" onclick="openEditProjectModal()">✎ Configurações</button>
+        </div>
+        <div id="project-logline" class="project-logline">Nenhuma sinopse ou premissa definida.</div>
+      </div>
+
+      <div class="cloud-auth-area">
+        <div id="cloud-sync-status" class="sync-badge sync-local">📁 Modo Offline / Local</div>
+        <div id="auth-logged-out">
+          <button class="btn btn-primary btn-sm" onclick="openAuthModal('login')">🔑 Entrar / Sincronizar</button>
+        </div>
+        <div id="auth-logged-in" style="display:none;" class="logged-user-wrap">
+          <span id="user-email-display" class="user-email-label">usuario@email.com</span>
+          <button class="btn btn-ghost btn-sm" onclick="logoutUser()">Desconectar</button>
+        </div>
+      </div>
+
+      <div class="storage-actions">
+        <button class="btn btn-ghost btn-sm" onclick="exportMarkdownDossier()">📜 Dossiê (.MD)</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📊 Elenco (.CSV)</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportJSON()">💾 Backup (.JSON)</button>
+        <button class="btn btn-ghost btn-sm" onclick="triggerImport()">📂 Importar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCurrentProject()">🗑 Excluir Obra</button>
+        <input type="file" id="import-file" style="display:none;" onchange="importJSON(event)" accept=".json">
+      </div>
+    </div>
+
+    <nav class="journal-nav">
+      <button class="nav-tab active" onclick="switchTab('tab-char', this)">
+        <span class="tab-number">I.</span> Wiki do Elenco (<span id="count-char">0</span>)
+      </button>
+      <button class="nav-tab" onclick="switchTab('tab-board', this)">
+        <span class="tab-number">II.</span> Mesa de Ideias & Pistas (<span id="count-board">0</span>)
+      </button>
+      <button class="nav-tab" onclick="switchTab('tab-web', this)">
+        <span class="tab-number">III.</span> Teia de Relações (<span id="count-web">0</span>)
+      </button>
+      <button class="nav-tab" onclick="switchTab('tab-timeline', this)">
+        <span class="tab-number">IV.</span> Linha do Tempo (<span id="count-timeline">0</span>)
+      </button>
+      <button class="nav-tab" onclick="switchTab('tab-chapters', this)">
+        <span class="tab-number">V.</span> Manuscrito & Capítulos (<span id="count-chapters">0</span>)
+      </button>
+    </nav>
+  </header>
+
+  <!-- ABA 1: PERSONAGENS -->
+  <main id="tab-char" class="tab-content active">
+    <div class="controls-bar journal-bar">
+      <div class="search-wrap">
+        <input type="text" id="search-char" class="search-input" placeholder="Buscar no elenco..." oninput="renderCharacters()">
+      </div>
+      <div class="filter-tags" id="faction-filters"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn" onclick="openQuickReference()">📋 Referência Rápida</button>
+        <button class="btn btn-primary" onclick="openCharacterModal()">+ Criar Ficha de Personagem</button>
+      </div>
+    </div>
+    <div class="grid" id="grid-characters"></div>
+  </main>
+
+  <!-- ABA 2: MURAL DE IDEIAS -->
+  <main id="tab-board" class="tab-content">
+    <div class="controls-bar journal-bar">
+      <div class="board-selector-area">
+        <label for="board-select" class="board-label">Prancheta Ativa:</label>
+        <select id="board-select" class="form-select board-dropdown" onchange="switchBoard(this.value)"></select>
+        <button class="btn" onclick="openNewBoardModal()">+ Nova</button>
+        <button class="btn btn-secondary" onclick="openEditBoardModal()">✎ Editar</button>
+      </div>
+
+      <div class="board-tools-actions">
+        <div class="tool-group">
+          <button class="btn btn-primary" onclick="openBoardItemModal('note')">📝 + Post-it</button>
+          <button class="btn btn-primary" onclick="openBoardItemModal('image')">🖼 + Fotografia</button>
+          <button class="btn btn-primary" onclick="openBoardItemModal('clue')">📌 + Pista / Fato</button>
+        </div>
+        <span class="tool-divider"></span>
+        <div class="tool-group">
+          <button class="btn" onclick="openBoardConnectionModal()">🧶 Passar Fio</button>
+          <button class="btn" id="btn-draw-mode" onclick="toggleDrawingMode()">✏️ Caneta: OFF</button>
+          <div class="pen-palette-wrap">
+            <input type="color" id="pen-color-picker" value="#c49a6c" onchange="updatePenColor(this.value)">
+            <select id="pen-width-select" class="pen-width-select" onchange="updatePenWidth(this.value)">
+              <option value="2">2px</option>
+              <option value="4" selected>4px</option>
+              <option value="8">8px</option>
+            </select>
+          </div>
+          <button class="btn" id="btn-eraser-mode" onclick="toggleEraserMode()">🧽 Borracha: OFF</button>
+        </div>
+        <span class="tool-divider"></span>
+        <button class="btn btn-danger btn-sm" onclick="clearDrawings()">🧹 Limpar Traços</button>
+      </div>
+    </div>
+
+    <div class="board-viewport-container" id="board-container">
+      <div class="board-zoom-bar">
+        <button class="zoom-btn" onclick="zoomBoard(1.2)">+</button>
+        <button class="zoom-btn" onclick="zoomBoard(0.8)">-</button>
+        <button class="zoom-btn" onclick="resetBoardZoom()">⟲</button>
+      </div>
+
+      <div class="board-helper-tag">
+        <span id="current-board-title-display">PRANCHETA DE IDEIAS</span> &bull; 
+        <span id="board-mode-status-text">Arraste notas com o dedo/mouse // Pinça para Zoom</span>
+      </div>
+
+      <svg id="board-svg" class="board-svg-layer">
+        <defs>
+          <pattern id="board-grid" width="34" height="34" patternUnits="userSpaceOnUse">
+            <path d="M 34 0 L 0 0 0 34" fill="none" stroke="var(--grid-line-color)" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#board-grid)" />
+        <g id="board-viewport-layer">
+          <g id="board-connections-group"></g>
+          <g id="board-drawings-group"></g>
+        </g>
+      </svg>
+      <div id="board-items-layer" class="board-html-layer"></div>
+    </div>
+  </main>
+
+  <!-- ABA 3: TEIA DE RELAÇÕES -->
+  <main id="tab-web" class="tab-content">
+    <div class="controls-bar journal-bar">
+      <div class="hint-text">
+        ✦ <strong>Mover:</strong> Arraste o nó &bull; 
+        ✦ <strong>Conectar:</strong> Puxe o fio a partir do <strong>ponto (+)</strong>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" onclick="autoLayoutWebPhysics()">⚛️ Organizar Grafo (Física)</button>
+        <button class="btn btn-primary" onclick="openRelationshipModal()">+ Nova Conexão Manual</button>
+      </div>
+    </div>
+
+    <div class="split-container">
+      <div class="canvas-box journal-canvas-box" id="web-canvas-box">
+        <svg id="web-svg">
+          <defs>
+            <pattern id="web-grid" width="32" height="32" patternUnits="userSpaceOnUse">
+              <path d="M 32 0 L 0 0 0 32" fill="none" stroke="var(--grid-line-color)" stroke-width="1"/>
+            </pattern>
+            <marker id="arrowhead" markerWidth="9" markerHeight="9" refX="28" refY="4.5" orient="auto">
+              <polygon points="0 1, 9 4.5, 0 8" fill="var(--accent-gold)" />
+            </marker>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#web-grid)" />
+          <g id="svg-links"></g>
+          <g id="svg-live-wire"></g>
+          <g id="svg-link-labels"></g>
+          <g id="svg-nodes"></g>
+        </svg>
+      </div>
+      <aside class="sidebar-panel journal-sidebar" id="web-sidebar"></aside>
+    </div>
+  </main>
+
+  <!-- ABA 4: LINHA DO TEMPO -->
+  <main id="tab-timeline" class="tab-content">
+    <div class="controls-bar journal-bar">
+      <div class="timeline-controls-left">
+        <div class="search-wrap">
+          <input type="text" id="search-timeline" class="search-input" placeholder="Buscar na cronologia..." oninput="renderTimeline()">
+        </div>
+        <select id="timeline-filter-char" class="form-select timeline-select-filter" onchange="renderTimeline()">
+          <option value="all">👤 Todo o Elenco</option>
+        </select>
+        <select id="timeline-filter-type" class="form-select timeline-select-filter" onchange="renderTimeline()">
+          <option value="all">🏷️ Todos os Tipos de Marco</option>
+          <option value="presente">⏳ Presente da Narrativa</option>
+          <option value="flashback">🕯️ Flashback / Memória</option>
+          <option value="historia">📜 História Antiga / Lore</option>
+          <option value="revelacao">🔍 Revelação / Segredo</option>
+          <option value="virada">⚡ Ponto de Virada</option>
+        </select>
+      </div>
+      
+      <div class="timeline-controls-right">
+        <div class="timeline-view-modes">
+          <button class="btn btn-sm active" id="btn-timeline-view-track" onclick="setTimelineViewMode('track', this)">📜 Trilho</button>
+          <button class="btn btn-sm" id="btn-timeline-view-cards" onclick="setTimelineViewMode('cards', this)">📑 Fichas</button>
+        </div>
+        <button class="btn btn-primary" onclick="openTimelineEventModal()">+ Novo Marco Cronológico</button>
+      </div>
+    </div>
+
+    <div class="timeline-meta-bar" id="timeline-meta-bar"></div>
+    <div class="timeline-viewport" id="timeline-viewport">
+      <div class="timeline-track-rail" id="timeline-track-rail"></div>
+    </div>
+  </main>
+
+  <!-- ABA 5: MANUSCRITO -->
+  <main id="tab-chapters" class="tab-content">
+    <div class="controls-bar journal-bar">
+      <div class="hint-text">
+        ✦ <strong>Reordenar:</strong> Arraste pelo ícone ⠿ ou use ↑ ↓ &bull; 
+        ✦ <strong>Redigir:</strong> Clique em <strong>✍️ Ateliê de Escrita</strong>
+      </div>
+      <button class="btn btn-primary" onclick="openChapterModal()">+ Novo Capítulo</button>
+    </div>
+
+    <div id="chapters-progress-wrap" class="chapters-progress-wrap"></div>
+    <div id="chapters-list" class="chapters-list"></div>
+  </main>
+
+  <footer class="journal-footer">
+    <div>OMNISCRIPTA &bull; MOTOR NARRATIVO & ATELIÊ EDITORIAL</div>
+    <div>CRONOLOGIA INTERATIVA &bull; PERSISTÊNCIA RESILIENTE</div>
+  </footer>
+</div>
+
+<!-- MODAL ATELIÊ DE ESCRITA -->
+<div class="modal-overlay" id="modal-chapter-writer" onclick="closeWriterModalDirect(event)">
+  <div class="writer-modal-box" onclick="event.stopPropagation()">
+    <header class="writer-topbar">
+      <div class="writer-title-area">
+        <span class="writer-chapter-num" id="writer-chapter-index-display">CAPÍTULO 1</span>
+        <input type="text" id="writer-chapter-title-input" class="writer-chapter-title" placeholder="Título do Capítulo..." oninput="onWriterMetaChange()">
+      </div>
+
+      <div class="writer-tools">
+        <div class="writer-stats-pill">
+          <span id="writer-word-counter">0 palavras</span> &bull; 
+          <span id="writer-read-time">~0 min de leitura</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-writer-notes-toggle" onclick="toggleWriterDrawer()">📋 Ficha & Pistas</button>
+        <button class="btn btn-primary btn-sm" onclick="saveWriterContentAndClose()">💾 Salvar Manuscrito</button>
+        <button class="close-corner" onclick="saveWriterContentAndClose()">✕</button>
+      </div>
+    </header>
+
+    <div class="writer-workspace-layout" id="writer-workspace-layout">
+      <div class="writer-editor-pane">
+        <div class="manuscript-page-wrap">
+          <div class="manuscript-watermark-corner">Omniscripta Studio</div>
+          <textarea id="writer-textarea" class="writer-textarea" placeholder="Era uma vez... comece a redigir o manuscrito aqui." oninput="handleWriterTextInput()"></textarea>
+        </div>
+      </div>
+
+      <aside class="writer-side-drawer" id="writer-side-drawer">
+        <h4 class="drawer-heading">Contexto da Cena</h4>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="writer-status-select" class="form-select" onchange="onWriterMetaChange()"></select>
+        </div>
+        <div class="form-group">
+          <label>Personagem POV</label>
+          <select id="writer-pov-select" class="form-select" onchange="onWriterMetaChange()"></select>
+        </div>
+        <div class="form-group">
+          <label>Meta de Palavras</label>
+          <input type="number" id="writer-word-target" class="form-input" placeholder="Ex: 2500" oninput="onWriterMetaChange()">
+        </div>
+        <div class="form-group">
+          <label>Sinopse da Cena</label>
+          <textarea id="writer-summary-input" class="form-textarea" style="min-height:80px;" oninput="onWriterMetaChange()"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Cena-Chave</label>
+          <textarea id="writer-scene-key-input" class="form-textarea" style="min-height:60px;" oninput="onWriterMetaChange()"></textarea>
+        </div>
+        <h4 class="drawer-heading" style="margin-top:12px;">Inserir Personagem</h4>
+        <div id="writer-characters-quicklist" class="writer-char-pill-grid"></div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EVENTO DA LINHA DO TEMPO -->
+<div class="modal-overlay" id="modal-timeline-event" onclick="closeModal('modal-timeline-event')">
+  <div class="modal-box modal-box-large" onclick="event.stopPropagation()">
+    <button class="close-corner" onclick="closeModal('modal-timeline-event')">✕</button>
+    <h2 id="modal-timeline-title">Marco Cronológico</h2>
+    <form id="form-timeline-event" onsubmit="saveTimelineEvent(event)">
+      <input type="hidden" id="timeline-event-id">
+
+      <div class="form-row">
+        <div class="form-group" style="flex:2;">
+          <label>Título do Evento *</label>
+          <input type="text" id="timeline-title-input" class="form-input" required placeholder="Ex: A Carta Envenenada...">
+        </div>
+        <div class="form-group">
+          <label>Natureza do Marco</label>
+          <select id="timeline-type-select" class="form-select">
+            <option value="presente">⏳ Presente da Narrativa</option>
+            <option value="flashback">🕯️ Flashback / Memória</option>
+            <option value="historia">📜 História Antiga / Lore</option>
+            <option value="revelacao">🔍 Revelação / Segredo</option>
+            <option value="virada">⚡ Ponto de Virada</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data no Mundo Ficcional *</label>
+          <input type="text" id="timeline-date-display" class="form-input" required placeholder="Ex: 14 de Outubro de 1892...">
+        </div>
+        <div class="form-group">
+          <label>Ordem Numérica *</label>
+          <input type="number" step="any" id="timeline-sort-order" class="form-input" required placeholder="Ex: 1892.8, 1, 2.5">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Era / Arco (Opcional)</label>
+          <input type="text" id="timeline-era-input" class="form-input" placeholder="Ex: Noite do Baile...">
+        </div>
+        <div class="form-group">
+          <label>Capítulo Onde é Narrado</label>
+          <select id="timeline-chapter-select" class="form-select"></select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Cor do Selo</label>
+        <select id="timeline-color-select" class="form-select">
+          <option value="#d4af37">🟡 Ouro Nobre</option>
+          <option value="#a63d40">🔴 Carmim</option>
+          <option value="#8a6d9e">🟣 Púrpura</option>
+          <option value="#4f8a65">🟢 Verde Sálvia</option>
+          <option value="#536b78">🔵 Ardósia</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Personagens Envolvidos</label>
+        <div class="timeline-chars-checkbox-grid" id="timeline-chars-selector-box"></div>
+      </div>
+
+      <div class="form-group">
+        <label>Descrição dos Acontecimentos</label>
+        <textarea id="timeline-summary-input" class="form-textarea" placeholder="Explique o que ocorreu..."></textarea>
+      </div>
+
+      <div class="modal-buttons">
+        <button type="button" class="btn" onclick="closeModal('modal-timeline-event')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar Marco</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL AUTENTICAÇÃO -->
+<div class="modal-overlay" id="modal-auth" onclick="closeModal('modal-auth')">
+  <div class="modal-box modal-box-auth" onclick="event.stopPropagation()">
+    <button class="close-corner" onclick="closeModal('modal-auth')">✕</button>
+    <h2 id="modal-auth-title">Acessar Conta Omniscripta</h2>
+    <div class="auth-tabs">
+      <button type="button" id="auth-tab-login" class="auth-tab-btn active" onclick="setAuthMode('login')">Entrar</button>
+      <button type="button" id="auth-tab-signup" class="auth-tab-btn" onclick="setAuthMode('signup')">Criar Conta</button>
+    </div>
+    <div id="auth-message" class="auth-message" style="display:none;"></div>
+    <form id="form-auth" onsubmit="handleAuthSubmit(event)">
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="auth-email" class="form-input" required placeholder="seu@email.com">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="auth-password" class="form-input" required minlength="6" placeholder="Mínimo 6 caracteres...">
+      </div>
+      <div class="modal-buttons">
+        <button type="button" class="btn" onclick="closeModal('modal-auth')">Cancelar</button>
+        <button type="submit" id="auth-submit-btn" class="btn btn-primary">Entrar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL OBRA -->
+<div class="modal-overlay" id="modal-project" onclick="closeModal('modal-project')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="close-corner" onclick="closeModal('modal-project')">✕</button>
+    <h2 id="modal-project-title">Configurações da Obra</h2>
+    <form id="form-project" onsubmit="saveProject(event)">
+      <input type="hidden" id="project-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Título da Obra</label>
+          <input type="text" id="proj-name" class="form-input" required placeholder="Nome do romance...">
+        </div>
+        <div class="form-group">
+          <label>Gênero / Estilo</label>
+          <input type="text" id="proj-genre" class="form-input" placeholder="Ex: Suspense, Gótico...">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Premissa Central / Sinopse</label>
+        <textarea id="proj-logline" class="form-textarea" placeholder="Resumo do conflito principal..."></textarea>
+      </div>
+      <div class="modal-buttons">
+        <button type="button" class="btn" onclick="closeModal('modal-project')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar Obra</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL NOVO/EDITAR QUADRO -->
+<div class="modal-overlay" id="modal-board-manage" onclick="closeModal('modal-board-manage')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="close-corner" onclick="closeModal('modal-board-manage')">✕</button>
+    <h2 id="modal-board-manage-title">Prancheta de Ideias</h2>
+    <form id="form-board-manage" onsubmit="saveBoardManage(event)">
+      <input type="hidden" id="manage-board-id">
+      <div class="form-group">
+        <label>Nome da Prancheta</label>
+        <input type="text" id="manage-board-name" class="form-input" required placeholder="Ex: Mesa de Pistas...">
+      </div>
+      <div class="form-group">
+        <label>Descrição / Propósito</label>
+        <textarea id="manage-board-desc" class="form-textarea" placeholder="Objetivo deste quadro..."></textarea>
+      </div>
+      <div class="modal-buttons">
+        <button type="button" class="btn" onclick="closeModal('modal-board-manage')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar Prancheta</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL ITEM DO QUADRO -->
+<div class="modal-overlay" id="modal-board-item" onclick="closeModal('modal-board-item')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="close-corner" onclick="closeModal('modal-board-item')">✕</button>
+    <h2 id="modal-board-item-title">Item do Caderno</h2>
+    <form id="form-board-item" onsubmit="saveBoardItem(event)">
+      <input type="hidden" id="board-item-id">
+      <input type="hidden" id="board-item-type">
+      <input type="hidden" id="board-item-image-data">
+      <div class="form-group">
+        <label>Título / Rótulo</label>
+        <input type="text" id="board-item-title" class="form-input" required placeholder="Título do cartão...">
+      </div>
+      <div class="form-group">
+        <label>Personagem Vinculado (opcional)</label>
+        <select id="board-item-char" class="form-select">
+          <option value="">— Nenhum —</option>
+        </select>
+      </div>
+      <div id="fields-note" class="item-type-fields">
+        <div class="form-group">
+          <label>Estilo do Papel</label>
+          <select id="board-item-color" class="form-select">
+            <option value="yellow">📜 Pergaminho Dourado</option>
+            <option value="pink">🌸 Rosa Queimado</option>
+            <option value="blue">🌊 Ardósia</option>
+            <option value="green">🍃 Sálvia</option>
+            <option value="dark">🖋️ Tinta Escura</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Conteúdo da Nota</label>
+          <textarea id="board-item-text" class="form-textarea handwritten-preview" style="min-height:85px;"></textarea>
+        </div>
+      </div>
+      <div id="fields-image" class="item-type-fields" style="display:none;">
+        <div class="form-group image-upload-box">
+          <label>Fotografia / Imagem</label>
+          <div class="upload-controls">
+            <img id="board-img-preview" src="" class="img-preview" alt="Preview">
+            <input type="file" id="board-img-file" accept="image/*" class="form-input file-input" onchange="handleBoardImgUpload(event)">
+            <input type="text" id="board-img-url" class="form-input" placeholder="Ou URL da imagem..." oninput="handleBoardImgUrl(event)">
+          </div>
+          <div id="board-img-upload-status" class="upload-status-hint"></div>
+        </div>
+        <div class="form-group">
+          <label>Legenda</label>
+          <input type="text" id="board-item-caption" class="form-input">
+        </div>
+      </div>
+      <div id="fields-clue" class="item-type-fields" style="display:none;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tipo</label>
+            <select id="board-item-clue-type" class="form-select">
+              <option value="fato">🔴 Fato Comprovado</option>
+              <option value="pista">🟡 Pista / Suspeita</option>
+              <option value="duvida">🟣 Pergunta em Aberto</option>
+              <option value="virada">🔵 Ponto de Virada</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Etiqueta / Tag</label>
+            <input type="text" id="board-item-tag" class="form-input" placeholder="Ex: Álibi...">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Detalhes</label>
+          <textarea id="board-item-clue-desc" class="form-textarea"></textarea>
+        </div>
+      </div>
+      <div class="modal-buttons">
+        <button type="button" class="btn" onclick="closeModal('modal-board-item')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Fixar no Caderno</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL LIGAR ITENS COM FIO -->
+<div class="modal-overlay" id="modal-board-conn" onclick="closeModal('modal-board-conn')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="close-corner" onclick="closeModal('modal-board-conn')">✕</button>
+    <h2>Ligar com Fio de Conexão</h2>
+    <form id="form-board-conn" onsubmit="saveBoardConnection(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Origem</label>
+          <select id="board-conn-source" class="form-select" required></select>
+        </div>
+        <div class="form-group">
+          <label>Destino</label>
+          <select id="board-conn-target" class="form-select" required></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cor</label>
+          <select id="board-conn-color" class="form-select">
+            <option value="#a63d40">🔴 Carmim (Conflito)</option>
+            <option value="#d4af37">🟡 Ouro (Vínculo)</option>
+            <option value="#8a6d9e">🟣 Púrpura (Mistério)</option>
+            <option value="#4f8a65">🟢 Sálvia (Causa/Efeito)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Rótulo</label>
+          <input type="text" id="board-conn-label" class="form-input" placeholder="Ex: Contradiz...">
+        </div>
+      </div>
+      <div class="modal-buttons">
+        <button type="button" class="btn" onclick="closeModal('modal-board-conn')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Passar o Fio</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL PERSONAGEM (WIKI) -->
+<div class="modal-overlay" id="modal-char" onclick="closeModal('modal-char')">
+  <div class="modal-box modal-box-xlarge" onclick="event.stopPropagation()">
+    <button class="close-corner" onclick="closeModal('modal-char')">✕</button>
+    <h2 id="modal-char-title">Ficha do Personagem</h2>
+    <form id="form-char" onsubmit="saveCharacter(event)">
+      <input type="hidden" id="char-id">
+      <input type="hidden" id="char-image-data">
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" id="char-name" class="form-input" required placeholder="Nome do personagem">
+      </div>
+      <div class="form-group">
+        <label>Descrição Central</label>
+        <textarea id="char-description" class="form-textarea" placeholder="Resumo dramático..."></textarea>
+      </div>
+      <div class="form-group image-upload-box">
+        <label>Retrato / Fotografia</label>
+        <div class="upload-controls">
+          <img id="char-img-preview" src="" class="img-preview" alt="Preview">
+          <input type="file" id="char-img-file" accept="image/*" class="form-input file-input" onchange="handleImageUpload(event)">
+          <input type="text" id="char-img-url" class="form-input" placeholder="Ou URL..." oninput="handleImageUrlInput(event)">
+        </div>
+        <div id="char-img-upload-status" class="upload-status-hint"></div>
+      </div>
+      <div id="char-dynamic-fields"></div>
+      <div class="modal-buttons">
+        <button type="button" class="btn" onclick="closeModal('modal-char')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar no Arquivo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL VISUALIZADOR DA WIKI -->
+<div class="modal-overlay" id="modal-view-char" onclick="closeModal('modal-view-char')">
+  <div class="modal-box modal-box-large journal-article-box" onclick="event.stopPropagation()">
+    <button class="close-corner" onclick="closeModal('modal-view-char')">✕</button>
+    <div id="wiki-article-container"></div>
+  </div>
+</div>
+
+<!-- MODAL RELAÇÃO / TEIA -->
+<div class="modal-overlay" id="modal-rel" onclick="closeModal('modal-rel')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="close-corner" onclick="closeModal('modal-rel')">✕</button>
+    <h2 id="modal-rel-title">Conexão & Dinâmica</h2>
+    <form id="form-rel" onsubmit="saveRelationship(event)">
+      <input type="hidden" id="rel-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Origem (A)</label>
+          <select id="rel-source" class="form-select" required></select>
+        </div>
+        <div class="form-group">
+          <label>Destino (B)</label>
+          <select id="rel-target" class="form-select" required></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Título do Vínculo</label>
+          <input type="text" id="rel-title" class="form-input" required placeholder="Ex: Rivalidade Velada...">
+        </div>
+        <div class="form-group">
+          <label>Direção</label>
+          <select id="rel-direction" class="form-select">
+            <option value="mutual">↔️ Recíproco (Mútuo)</option>
+            <option value="forward">➡️ Direcional (A → B)</option>
+            <option value="backward">⬅️ Direcional (B → A)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cor da Linha</label>
+          <select id="rel-color" class="form-select">
+            <option value="#d4af37">🟡 Ouro Nobre</option>
+            <option value="#a63d40">🔴 Carmim (Conflito)</option>
+            <option value="#4f8a65">🟢 Sálvia (Afeto/Confiança)</option>
+            <option value="#8a6d9e">🟣 Púrpura (Segredo)</option>
+            <option value="#536b78">🔵 Ardósia (Formal)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Assimetria (Opcional)</label>
+          <input type="text" id="rel-asymmetry" class="form-input" placeholder="Ex: A admira B, mas B o usa...">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Dinâmica & Subtexto</label>
+        <textarea id="rel-prose" class="form-textarea"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Pacto / Débito (Opcional)</label>
+        <input type="text" id="rel-pact" class="form-input">
+      </div>
+      <div class="modal-buttons">
+        <button type="button" class="btn" onclick="closeModal('modal-rel')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar na Teia</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL CAPÍTULO -->
+<div class="modal-overlay" id="modal-chapter" onclick="closeModal('modal-chapter')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <button class="close-corner" onclick="closeModal('modal-chapter')">✕</button>
+    <h2 id="modal-chapter-title">Configurar Capítulo</h2>
+    <form id="form-chapter" onsubmit="saveChapter(event)">
+      <input type="hidden" id="chapter-id">
+      <div class="form-row">
+        <div class="form-group" style="flex:2;">
+          <label>Título do Capítulo *</label>
+          <input type="text" id="chapter-title-input" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="chapter-status" class="form-select"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Sinopse</label>
+        <textarea id="chapter-summary" class="form-textarea"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Cena-chave</label>
+        <input type="text" id="chapter-scene-key" class="form-input">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Personagem POV</label>
+          <select id="chapter-pov" class="form-select"></select>
+        </div>
+        <div class="form-group">
+          <label>Meta de Palavras</label>
+          <input type="number" id="chapter-word-target" class="form-input" min="0">
+        </div>
+      </div>
+      <div class="modal-buttons">
+        <button type="button" class="btn" onclick="closeModal('modal-chapter')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar Capítulo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL REFERÊNCIA RÁPIDA -->
+<div class="modal-overlay" id="modal-quickref" onclick="closeModal('modal-quickref')">
+  <div class="modal-box modal-box-large" onclick="event.stopPropagation()">
+    <button class="close-corner" onclick="closeModal('modal-quickref')">✕</button>
+    <div class="quickref-header">
+      <h2>Referência Rápida do Elenco</h2>
+      <button class="btn btn-primary" onclick="window.print()">🖨 Imprimir / PDF</button>
+    </div>
+    <div id="quickref-list" class="quickref-list"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
