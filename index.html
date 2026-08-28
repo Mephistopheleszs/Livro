@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="pt-BR" data-theme="light">
 <head>
@@ -284,13 +285,21 @@
         </div>
         <div class="form-group">
           <label>Sinopse da Cena</label>
-          <textarea id="writer-summary-input" class="form-textarea" style="min-height:80px;" oninput="onWriterMetaChange()"></textarea>
+          <textarea id="writer-summary-input" class="form-textarea" style="min-height:70px;" oninput="onWriterMetaChange()"></textarea>
         </div>
         <div class="form-group">
           <label>Cena-Chave</label>
-          <textarea id="writer-scene-key-input" class="form-textarea" style="min-height:60px;" oninput="onWriterMetaChange()"></textarea>
+          <textarea id="writer-scene-key-input" class="form-textarea" style="min-height:50px;" oninput="onWriterMetaChange()"></textarea>
         </div>
-        <h4 class="drawer-heading" style="margin-top:12px;">Inserir Personagem</h4>
+        
+        <!-- BLOCO DE NOTAS & IDEIAS DURANTE A ESCRITA -->
+        <div class="form-group">
+          <label>💡 Ideias Rápidas & Lembretes</label>
+          <textarea id="writer-scratchpad-input" class="form-textarea handwritten-preview" style="min-height:100px; background:var(--bg-card);" placeholder="Ideias soltas, diálogos ou pistas..." oninput="onWriterMetaChange()"></textarea>
+          <button type="button" id="btn-send-scratchpad" class="btn btn-sm" style="margin-top:6px; width:100%; justify-content:center;" onclick="sendScratchpadToBoard()">📌 Fixar Ideia na Mesa</button>
+        </div>
+
+        <h4 class="drawer-heading" style="margin-top:8px;">Inserir Personagem</h4>
         <div id="writer-characters-quicklist" class="writer-char-pill-grid"></div>
       </aside>
     </div>
