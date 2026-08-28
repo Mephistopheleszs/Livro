@@ -1,12 +1,11 @@
 /* ==========================================================================
    OMNISCRIPTA — ATELIÊ EDITORIAL & MOTOR NARRATIVO
-   Escala Compacta & Alta Densidade (Fine Print Stationery)
+   Escala Compacta, Alta Densidade & Proteção de Cliques
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap');
 
 :root {
-  /* TEMA CLARO: PERGAMINHO NOBRE, COURO & LATÃO */
   --bg-page: #e8e2d5;
   --bg-canvas: #f4efe6;
   --bg-card: #fdfbf7;
@@ -82,7 +81,6 @@
   --shadow-inset-parchment: inset 0 0 40px rgba(0, 0, 0, 0.45);
 }
 
-/* Redução da escala base de rem para desapertar o layout */
 html {
   font-size: 14px;
 }
@@ -112,7 +110,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* SCROLLBAR COMPACTA */
+/* SCROLLBAR */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -154,6 +152,7 @@ body {
   color: var(--accent-gold);
   font-size: 0.75rem;
   opacity: 0.5;
+  pointer-events: none;
 }
 .journal-container::before { top: 8px; left: 10px; }
 .journal-container::after { top: 8px; right: 10px; }
@@ -329,7 +328,6 @@ body {
   width: 100%;
 }
 
-/* BOTÕES ENXUTOS */
 .btn {
   background: var(--bg-card);
   border: 1px solid var(--border-strong);
@@ -408,7 +406,6 @@ body {
   font-size: 0.64rem;
 }
 
-/* NAVEGAÇÃO */
 .journal-nav {
   display: flex;
   gap: 4px;
@@ -450,7 +447,6 @@ body {
   font-weight: 700;
 }
 
-/* BARRAS DE CONTROLE */
 .journal-bar {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
@@ -1602,6 +1598,7 @@ body {
   position: relative;
   overflow: hidden;
   border-radius: 3px;
+  pointer-events: auto;
 }
 
 .writer-topbar {
@@ -1765,20 +1762,26 @@ body {
   color: #120f0d;
 }
 
-/* MODAIS & FORMULÁRIOS */
+/* ==========================================================================
+   MODAIS COM TRAVA DE SEGURANÇA CONTRA BLOQUEIO DE CLIQUES
+   ========================================================================== */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(12, 9, 7, 0.75);
   backdrop-filter: blur(5px);
-  display: none;
+  display: none !important;
   align-items: center;
   justify-content: center;
   padding: 16px;
   z-index: 200;
+  pointer-events: none;
 }
 
-.modal-overlay.open { display: flex; }
+.modal-overlay.open {
+  display: flex !important;
+  pointer-events: auto;
+}
 
 .modal-box {
   background: var(--bg-modal);
@@ -1791,6 +1794,7 @@ body {
   overflow-y: auto;
   box-shadow: var(--shadow-modal);
   border-radius: 3px;
+  pointer-events: auto;
 }
 
 .modal-box-auth { max-width: 400px; }
@@ -2232,30 +2236,6 @@ body {
   letter-spacing: 0.8px;
   flex-wrap: wrap;
   gap: 10px;
-}
-
-@media print {
-  body * { visibility: hidden; }
-  #modal-quickref, #modal-quickref * { visibility: visible; }
-  .modal-overlay#modal-quickref {
-    position: absolute;
-    inset: 0;
-    background: #fff;
-    backdrop-filter: none;
-    padding: 0;
-    display: block;
-  }
-  #modal-quickref .modal-box {
-    box-shadow: none;
-    border: none;
-    max-width: 100%;
-    max-height: none;
-    overflow: visible;
-    padding: 10px;
-  }
-  #modal-quickref .close-corner,
-  #modal-quickref .quickref-header .btn { display: none; }
-  .quickref-row { break-inside: avoid; }
 }
 
 @media (max-width: 900px) {
